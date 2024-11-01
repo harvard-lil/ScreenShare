@@ -355,10 +355,10 @@ def handle_slack_event(event):
                 if "thread_ts" in event and event["ts"] != event["thread_ts"]:
                     # this is a reply
                     with get_message_history() as message_history:
-                        message, is_most_recent = message_for_ts(message_history, event['thread_ts'])
-                        if message:
-                            # check message html for an image
-                            if message["html"].startswith("<img src="):
+                        original_message, is_most_recent = message_for_ts(message_history, event['thread_ts'])
+                        if original_message:
+                            # check original message html for an image
+                            if original_message["html"].startswith("<img src="):
                                 shapes = {
                                     "combo": 0,
                                     "triangle": 1,
@@ -386,7 +386,7 @@ def handle_slack_event(event):
 
                                     # turn img src into a file and post it
                                     pattern = re.compile("<img src='data:(.*);base64,(.*)'>")
-                                    result = pattern.search(message["html"])
+                                    result = pattern.search(original_message["html"])
                                     content_type = result.group(1)
                                     filetype, subtype = content_type.split("/")
                                     if filetype != "image":
