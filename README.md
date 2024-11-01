@@ -38,6 +38,9 @@ dokku config:set --no-restart screenshare "SLACK_BOT_ACCESS_TOKEN=..."
 dokku config:set --no-restart screenshare "ALLOWED_HOSTS=<your domain>"
 dokku config:set --no-restart screenshare "POST_CHANNEL=..."
 dokku config:set --no-restart screenshare "ASCII_FIRE_URL=..."
+sudo dokku plugin:install https://github.com/bensteinberg/dokku-primitive
+dokku primitive:create prim
+dokku primitive:link prim screenshare
 ```
 
 Finally, having set up your git remote with something like `git remote
@@ -69,6 +72,11 @@ Slack. The complete sequence for doing this is as follows:
 - additionally set `ASCII_FIRE_URL` in `config/.env`
 - install [Poetry](https://python-poetry.org/), probably with `curl
   -sSL https://install.python-poetry.org | python3 -`
+- in yet another terminal, run the primitive API; probably the simplest way is
+  `docker run -p 8081:8000 registry.lil.tools/harvardlil/primitive:0.03`,
+  but you can also clone https://github.com/bensteinberg/primitive-api and run
+  `docker build -t primitive-api . && docker run -it -p 8081:8000 primitive-api`.
+  Set `PRIMITIVE_URL=http://localhost:8081/` in `config/.env`.
 - in yet another terminal, in this directory, run `poetry install`
 - in the same terminal, generate a secret key with `poetry run python
   -c "from django.core.management.utils import get_random_secret_key;
