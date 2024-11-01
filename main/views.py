@@ -359,14 +359,28 @@ def handle_slack_event(event):
                         if message:
                             # check message html for an image
                             if message["html"].startswith("<img src="):
+                                shapes = {
+                                    "combo": 0,
+                                    "triangle": 1,
+                                    "rectangle": 2,
+                                    "ellipse": 3,
+                                    "circle":4,
+                                    "rotated_rectangle": 5,
+                                    "bezier": 6,
+                                    "rotated_ellipse": 7,
+                                    "polygon": 8
+                                }
                                 # parse this message for a primitive command
-                                pattern = re.compile(".*`primrose( m=\d+)?( n=\d+)?`.*")
+                                pattern = re.compile(".*`primrose( shape=[a-z_]+)?( n=\d+)?`.*")
                                 result = pattern.search(event["text"])
                                 if result:
                                     formdata = {}
                                     # get the options
                                     if result.group(1):
-                                        formdata["m"] = result.group(1).split("=")[1]
+                                        try:
+                                            formdata["m"] = shapes[result.group(1).split("=")[1]]
+                                        except KeyError:
+                                            pass
                                     if result.group(2):
                                         formdata["n"] = result.group(2).split("=")[1]
 
