@@ -197,3 +197,5 @@ AMBIENT_YOUTUBE_VIDEOS = {}
 for video in (v for k,v in env.ENVIRON.items() if k.startswith('AMBIENT_YOUTUBE_VIDEO')):
     emoji, config = json.loads(video)
     AMBIENT_YOUTUBE_VIDEOS[emoji] = config
+
+PRIMITIVE_URL = env("PRIMITIVE_URL", default=None)

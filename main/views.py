@@ -11,6 +11,7 @@ import requests
 import threading
 from urllib.parse import urlencode
 import os
+import tempfile
 
 from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
@@ -343,6 +344,57 @@ def handle_slack_event(event):
             #     "text": "Hello world",
             #     "ts": "1355517523.000005"
             # }
+
+            # for replies, which we'll use to primitivize a previous image, message subtype should be
+            # "message_replied", but
+            # "Bug alert! This event is missing the subtype field when dispatched over the Events API.
+            # Until it is fixed, examine message events' thread_ts value. When present, it's a reply.
+            # To be doubly sure, compare a thread_ts to the top-level ts value, when they differ the
+            # latter is a reply to the former." (but don't bother checking if we don't have PRIMITIVE_URL)
+            if settings.PRIMITIVE_URL:
+                if "thread_ts" in event and event["ts"] != event["thread_ts"]:
+                    # this is a reply
+                    with get_message_history() as message_history:
+                        message, is_most_recent = message_for_ts(message_history, event['thread_ts'])
+                        if message:
+                            # check message html for an image
+                            if message["html"].startswith("<img src="):
+                                # parse this message for a primitive command
+                                pattern = re.compile(".*`primrose( m=\d+)?( n=\d+)?`.*")
+                                result = pattern.search(event["text"])
+                                if result:
+                                    formdata = {}
+                                    # get the options
+                                    if result.group(1):
+                                        formdata["m"] = result.group(1).split("=")[1]
+                                    if result.group(2):
+                                        formdata["n"] = result.group(2).split("=")[1]
+
+                                    # turn img src into a file and post it
+                                    pattern = re.compile("<img src='data:(.*);base64,(.*)'>")
+                                    result = pattern.search(message["html"])
+                                    content_type = result.group(1)
+                                    filetype, subtype = content_type.split("/")
+                                    if filetype != "image":
+                                        return
+                                    data = result.group(2)
+                                    with tempfile.NamedTemporaryFile(suffix=f".{subtype}", delete=False) as tmp:
+                                        tmp.write(base64.b64decode(bytes(data, 'utf-8')))
+                                        tmp.close()
+                                        with open(tmp.name, 'rb') as f:
+                                            r = requests.post(settings.PRIMITIVE_URL, files={"file": f}, data=formdata)
+                                    os.unlink(tmp.name)
+
+                                    # and store the result
+                                    try:
+                                        response = r.json()
+                                        store_message(event["thread_ts"], response["img"])
+                                    except Exception as e:
+                                        logger.error(f"response: {response}")
+
+                                    # don't continue processing
+                                    return
+
             emoji_list = extract_emoji_from_message_text(event.get("text", ""))
             if emoji_list:
                 if "hotfire" in emoji_list and settings.ASCII_FIRE_URL:
