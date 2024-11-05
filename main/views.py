@@ -399,10 +399,18 @@ def handle_slack_event(event):
                                             r = requests.post(settings.PRIMITIVE_URL, files={"file": f}, data=formdata)
                                     os.unlink(tmp.name)
 
+                                    # (check for background-color emoji)
+                                    color = None
+                                    emoji_list = extract_emoji_from_message_text(event["text"])
+                                    if emoji_list:
+                                        colored_emoji = [emoji for emoji in emoji_list if any([color in emoji for color in colors])]
+                                        if colored_emoji:
+                                            color = [color for color in colors if color in colored_emoji[0]][0]
+
                                     # and store the result
                                     try:
                                         response = r.json()
-                                        store_message(event["thread_ts"], response["img"])
+                                        store_message(event["thread_ts"], response["img"], color)
                                     except Exception as e:
                                         logger.error(f"response: {response}")
 
